@@ -14,16 +14,33 @@ import shutil
 import urllib
 import csv
 
-def _options():
-    options = Options()
-    options.add_argument('--ignore-certificate-errors')
-    #options.add_argument("--test-type")
-    options.add_argument("--headless")
-    options.add_argument("--incognito")
-    options.add_argument('--disable-gpu') if os.name == 'nt' else None # Windows workaround
-    options.add_argument("--verbose")
-    return options
+# def options():
+#     options = Options()
+#     options.add_argument('--ignore-certificate-errors')
+#     #options.add_argument("--test-type")
+#     options.add_argument("--headless")
+#     options.add_argument("--incognito")
+#     options.add_argument('--disable-gpu') if os.name == 'nt' else None # Windows workaround
+#     options.add_argument("--verbose")
+#     return options
 
+def remove_duplicates(file_path):
+    lines_seen = set()  # Set to store unique lines
+    output_lines = []
+
+    # Read the input file line by line
+    with open(file_path, 'r') as file:
+        for line in file:
+            line = line.strip()  # Remove leading/trailing whitespace
+            if line not in lines_seen:
+                lines_seen.add(line)
+                output_lines.append(line)
+
+    # Write the unique lines to a new file
+    with open(file_path, 'w') as file:
+        file.write('\n'.join(output_lines))
+
+# options()
 browser = webdriver.Chrome()
 browser.set_window_size(1024, 600)
 browser.maximize_window()
@@ -33,27 +50,37 @@ browser.implicitly_wait(1)
 captions = []
 images = []
 
-def append_to_csv(filename, data):
-    with open(filename, 'a', newline='') as file:
-        writer = csv.writer(file)
-        for item in data:
-            writer.writerow([item])
+def caption_and_image(file_path, start_line, end_line):
+    with open(file_path, 'r') as file:
+        lines = file.readlines()
 
-with open('links.txt', 'r') as file:
-    c = 0
-    lines = file.readlines()
-    for line in lines:
+    # Adjust start_line and end_line to account for 0-based indexing
+    start_line -= 1
+    end_line -= 1
+
+    # Ensure start_line and end_line are within valid range
+    start_line = max(start_line, 0)
+    end_line = min(end_line, len(lines) - 1)
+
+    # Print the lines
+    for line_num in range(start_line, end_line + 1):
+        line = lines[line_num]
         # if c < 50:
         browser.get(line)
+        sleep(7)
+        # # div_element = browser.find_element(By.CSS_SELECTOR, "._aacl._aaco._aacu._aacx._aad7._aade")
+        # # caption_elem = WebDriverWait(browser, 30).until(
+        # # EC.presence_of_element_located((By.CSS_SELECTOR, "._aacl._aaco._aacu._aacx._aad7._aade")) #This is a dummy element
+        # # )
+        
+        # # img_elem = WebDriverWait(browser, 30).until(
+        # # EC.presence_of_element_located((By.CSS_SELECTOR, ".x5yr21d.xu96u03.x10l6tqk.x13vifvy.x87ps6o.xh8yej3")) #This is a dummy element
+        # # )
+        # sleep(1)
         try:
             # Try to find an element with the current class name
-            # img_elem = browser.find_element(By.CSS_SELECTOR, ".x5yr21d.xu96u03.x10l6tqk.x13vifvy.x87ps6o.xh8yej3")
-            
-            img_elem = WebDriverWait(browser, 30).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, ".x5yr21d.xu96u03.x10l6tqk.x13vifvy.x87ps6o.xh8yej3")) #This is a dummy element
-            )
-        
-            sleep(1)
+            img_elem = browser.find_element(By.CSS_SELECTOR, ".x5yr21d.xu96u03.x10l6tqk.x13vifvy.x87ps6o.xh8yej3")
+          
             url = img_elem.get_attribute("src")
             response = requests.get(url, stream=True)
             file_path = './images/' + str(c) + '.png'
@@ -61,14 +88,14 @@ with open('links.txt', 'r') as file:
                 shutil.copyfileobj(response.raw, out_file)
 
             del response
-            # caption_elem = browser.find_element(By.CSS_SELECTOR, "._aacl._aaco._aacu._aacx._aad7._aade")
-            caption_elem = WebDriverWait(browser, 30).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, "._aacl._aaco._aacu._aacx._aad7._aade")) #This is a dummy element
-            )
-            sleep(1)
+            caption_elem = browser.find_element(By.CSS_SELECTOR, "._aacl._aaco._aacu._aacx._aad7._aade")
+    
             caption = caption_elem.text
             caption = caption.replace('\n', '')
             captions.append(caption)
+            remove_duplicates('captions.csv')
+            append_to_csv('captions.csv', captions)
+            
             # Perform the procedure you want to execute if the class exists
             # For example, you can click on the element or interact with it here
             # element.click()
@@ -76,9 +103,19 @@ with open('links.txt', 'r') as file:
         except NoSuchElementException:
             print("skipping")
 
-        
 
-append_to_csv('captions.csv', captions)
+def append_to_csv(filename, data):
+    with open(filename, 'a', newline='') as file:
+        writer = csv.writer(file)
+        for item in data:
+            writer.writerow([item])
+
+file_path = 'links.txt'
+start_line = 0
+end_line = 10
+
+caption_and_image(file_path, start_line, end_line)
+
 
 
 
